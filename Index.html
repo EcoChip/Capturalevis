@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atrapa la Cara</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom, #c2f0ff, #ffffff);
+      touch-action: none;
+    }
+    #gameArea {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .falling, .bonus {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      user-select: none;
+      animation: fall linear;
+    }
+    .falling img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+    @keyframes fall {
+      0% { transform: translateY(-40px); }
+      100% { transform: translateY(100vh); }
+    }
+    #platform {
+      position: absolute;
+      bottom: 60px;
+      width: 100px;
+      height: 20px;
+      background: #007bff;
+      border-radius: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      transition: width 0.3s;
+    }
+    #score, #lost {
+      position: fixed;
+      top: 10px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      z-index: 10;
+    }
+    #score { left: 10px; }
+    #lost { right: 10px; color: red; }
+    #gameOver {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 3rem;
+      display: none;
+      z-index: 20;
+      background: white;
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div id="score">Puntos: 0</div>
+  <div id="lost">Fallos: 0</div>
+  <div id="gameOver">¡Juego Terminado!</div>
+  <div id="gameArea">
+    <div id="platform"></div>
+  </div>
+
+  <script>
+    const gameArea = document.getElementById("gameArea");
+    const platform = document.getElementById("platform");
+    const scoreText = document.getElementById("score");
+    const lostText = document.getElementById("lost");
+    const gameOverText = document.getElementById("gameOver");
+
+    const bonuses = ["⭐", "⚡"];
+
+    let score = 0;
+    let lost = 0;
+    let speed = 2;
+    let doublePoints = false;
+    let isGameOver = false;
+
+    let platformX = window.innerWidth / 2 - 50;
+    platform.style.left = platformX + "px";
+
+    function movePlatformTo(x) {
+      platformX = x - platform.offsetWidth / 2;
+      platformX = Math.max(0, Math.min(window.innerWidth - platform.offsetWidth, platformX));
+      platform.style.left = platformX + "px";
+    }
+
+    gameArea.addEventListener("touchmove", (e) => {
+      movePlatformTo(e.touches[0].clientX);
+    });
+
+    gameArea.addEventListener("mousemove", (e) => {
+      if (e.buttons === 1) movePlatformTo(e.clientX);
+    });
+
+    function createObject() {
+      if (isGameOver) return;
+
+      const isBonus = Math.random() < 0.15;
+      const obj = document.createElement("div");
+      obj.classList.add(isBonus ? "bonus" : "falling");
+
+      if (isBonus) {
+        obj.textContent = bonuses[Math.floor(Math.random() * bonuses.length)];
+        obj.style.fontSize = "2rem";
+        obj.style.textAlign = "center";
+      } else {
+        const img = document.createElement("img");
+        img.src = "cara.png"; // Tu imagen personalizada
+        obj.appendChild(img);
+      }
+
+      obj.style.left = Math.random() * (window.innerWidth - 50) + "px";
+      obj.style.animationDuration = (8 - speed) + "s";
+
+      gameArea.appendChild(obj);
+
+      let y = 0;
+      const fallSpeed = speed;
+
+      const fall = setInterval(() => {
+        if (isGameOver) {
+          clearInterval(fall);
+          obj.remove();
+          return;
+        }
+
+        y += fallSpeed;
+        obj.style.top = y + "px";
+
+        const objRect = obj.getBoundingClientRect();
+        const platRect = platform.getBoundingClientRect();
+
+        const isFallingImage = obj.classList.contains("falling");
+
+        if (
+          objRect.bottom >= platRect.top &&
+          objRect.left < platRect.right &&
+          objRect.right > platRect.left &&
+          objRect.bottom < platRect.bottom + 30
+        ) {
+          clearInterval(fall);
+          obj.remove();
+
+          if (isBonus) {
+            if (obj.textContent === "⭐") {
+              platform.style.width = "160px";
+              setTimeout(() => {
+                platform.style.width = "100px";
+              }, 5000);
+            } else if (obj.textContent === "⚡") {
+              doublePoints = true;
+              setTimeout(() => (doublePoints = false), 5000);
+            }
+          } else {
+            score += doublePoints ? 2 : 1;
+            scoreText.textContent = "Puntos: " + score;
+            if (score % 5 === 0) speed += 0.3;
+          }
+        }
+
+        if (objRect.top > window.innerHeight) {
+          clearInterval(fall);
+          obj.remove();
+          if (isFallingImage) {
+            lost++;
+            lostText.textContent = "Fallos: " + lost;
+            if (lost >= 10) endGame();
+          }
+        }
+      }, 20);
+    }
+
+    function endGame() {
+      isGameOver = true;
+      clearInterval(gameInterval);
+      gameOverText.style.display = "block";
+    }
+
+    const gameInterval = setInterval(createObject, 900);
+  </script>
+</body>
+</html>
